@@ -14,6 +14,8 @@ test('browser form logs in locally, stores only a session and immediately author
   assert.equal(info.browser_opened, true); assert.match(info.login_url, /^http:\/\/127\.0\.0\.1:[0-9]+\/[a-f0-9]{48}$/);
   const page = await fetch(info.login_url), html = await page.text();
   assert.equal(page.headers.get('Cache-Control'), 'no-store'); assert.match(page.headers.get('Content-Security-Policy'), /form-action 'self'/);
+  // A native form POST needs its real Origin; no-referrer turns it into null.
+  assert.equal(page.headers.get('Referrer-Policy'), 'same-origin');
   assert.match(html, /type="password"/); assert.doesNotMatch(html, /<script/);
   const result = await fetch(`${info.login_url}/login`, { method: 'POST', headers: { Origin: login.origin },
     body: new URLSearchParams({ username: 'alice', password: 'private-password' }) });
@@ -24,14 +26,17 @@ test('browser form logs in locally, stores only a session and immediately author
 });
 
 test('login requires unpredictable path and matching Origin; failures never reflect the password', async t => {
-  const { client } = fixtureClient({ handler: url => url.pathname.endsWith('/rest/auth/1/session')
+  const { client, requests } = fixtureClient({ handler: url => url.pathname.endsWith('/rest/auth/1/session')
     ? new Response('private-cookie-and-password', { status: 401 }) : null });
   const login = new LoginWindow(client, { opener: async () => true }); t.after(() => login.close());
   const info = await login.open();
   assert.equal((await fetch(`${login.origin}/wrong-token`)).status, 404);
-  const badOrigin = await fetch(`${info.login_url}/login`, { method: 'POST', headers: { Origin: 'https://evil.example' },
-    body: new URLSearchParams({ username: 'alice', password: 'private-password' }) });
-  assert.equal(badOrigin.status, 403);
+  for (const origin of ['https://evil.example', 'null', undefined]) {
+    const badOrigin = await fetch(`${info.login_url}/login`, { method: 'POST', headers: origin ? { Origin: origin } : {},
+      body: new URLSearchParams({ username: 'alice', password: 'private-password' }) });
+    assert.equal(badOrigin.status, 403);
+  }
+  assert.equal(requests.length, 0);
   const denied = await fetch(`${info.login_url}/login`, { method: 'POST', headers: { Origin: login.origin },
     body: new URLSearchParams({ username: 'alice', password: 'private-password' }) });
   assert.equal(denied.status, 400); assert.doesNotMatch(await denied.text(), /private-password|private-cookie-and-password/);

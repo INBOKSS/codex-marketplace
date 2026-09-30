@@ -1,6 +1,6 @@
 {
   "name": "jira-local",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Local Jira Server integration: tickets, attachments and simple browser sign-in.",
   "author": { "name": "Inbox" },
   "mcpServers": "./.mcp.json",

@@ -8,7 +8,7 @@ root.
 
 | Plugin | Version | Purpose |
 | --- | --- | --- |
-| `jira-local` | `0.2.2` | Read Jira tickets, download attachments, and sign in through a local browser window. |
+| `jira-local` | `0.2.3` | Read Jira tickets, download attachments, and sign in through a local browser window. |
 
 The Jira plugin includes its compiled MCP server and native credential-storage
 libraries for Windows x64 / ARM64, macOS Intel / Apple Silicon, and Linux

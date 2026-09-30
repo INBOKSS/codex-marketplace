@@ -87,6 +87,9 @@ The sign-in form opens again when your session expires. You can also say
 
 ## Authentication
 
+Version 0.2.3 fixes `Forbidden` after submitting the local sign-in form in a
+browser. Update the plugin and reopen the sign-in window if using an older version.
+
 The form listens only on `127.0.0.1` on a random port. It closes after 10 minutes
 without a successful sign-in, or 30 seconds after success. Its URL contains a
 random token; requests with other Origin or Host values are rejected. The password

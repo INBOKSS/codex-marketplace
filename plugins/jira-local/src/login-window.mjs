@@ -54,8 +54,9 @@ export class LoginWindow {
   }
 
   send(response, status, html) {
+    // no-referrer makes browsers send Origin: null for form POSTs, failing the Origin check.
     response.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store',
-      'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'same-origin', 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY',
       'Content-Security-Policy': `default-src 'none'; style-src 'nonce-${this.nonce}'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'` });
     response.end(html);
   }
