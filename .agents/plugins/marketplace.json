@@ -1,0 +1,10 @@
+{
+  "name": "inbox-local",
+  "interface": { "displayName": "Inbox — Local Plugins" },
+  "plugins": [{
+    "name": "jira-local",
+    "source": { "source": "local", "path": "./plugins/jira-local" },
+    "policy": { "installation": "AVAILABLE", "authentication": "ON_USE" },
+    "category": "Productivity"
+  }]
+}
