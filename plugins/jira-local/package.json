@@ -1,0 +1,17 @@
+{
+  "name": "jira-local-codex-plugin",
+  "version": "0.2.2",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "build": "node scripts/build.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.31.0",
+    "@napi-rs/keyring": "2.1.0",
+    "zod": "4.3.6"
+  },
+  "devDependencies": { "esbuild": "0.28.2" }
+}

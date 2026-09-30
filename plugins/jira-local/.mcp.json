@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "jira": {
+      "command": "node",
+      "args": ["./dist/server.cjs"],
+      "cwd": ".",
+      "env": { "JIRA_BASE_URL": "https://jira.co.inbox.lv" },
+      "tool_timeout_sec": 60
+    }
+  }
+}
