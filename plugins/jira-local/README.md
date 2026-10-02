@@ -8,7 +8,7 @@ and native components for system credential storage are included in the package.
 ## Install from the team marketplace
 
 Follow the [marketplace installation instructions](../../README.md) to register
-`https://git.co.inbox.lv/nikolay/codex-marketplace.git`, then install
+`git@github.com:INBOKSS/codex-marketplace.git`, then install
 `jira-local@inbox-local`. The compiled server and native libraries are committed
 in this repository, so users do not need to run npm or build the plugin.
 

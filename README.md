@@ -20,14 +20,14 @@ Your GitLab account must have read access to this repository. In Codex, use
 **Add a marketplace** with:
 
 ```text
-https://git.co.inbox.lv/nikolay/codex-marketplace.git
+git@github.com:INBOKSS/codex-marketplace.git
 ```
 
 Then install **jira-local** from **Inbox — Local Plugins** (`inbox-local`).
 The equivalent CLI commands are:
 
 ```sh
-codex plugin marketplace add https://git.co.inbox.lv/nikolay/codex-marketplace.git
+codex plugin marketplace add git@github.com:INBOKSS/codex-marketplace.git
 codex plugin add jira-local@inbox-local
 ```
 
@@ -35,7 +35,7 @@ Until the initial merge request is merged into `master`, select the prepared
 branch explicitly:
 
 ```sh
-codex plugin marketplace add https://git.co.inbox.lv/nikolay/codex-marketplace.git --ref setup-codex-marketplace
+codex plugin marketplace add git@github.com:INBOKSS/codex-marketplace.git --ref setup-codex-marketplace
 codex plugin add jira-local@inbox-local
 ```
 
