@@ -68,8 +68,9 @@ root, with the plugin manifest under
 expects a different root layout and cannot use this local server as a registered
 remote MCP connection.
 
-The sign-in form opens again when your session expires. You can also say
-**“Sign in to Jira”** to reopen it using the `jira_login` tool.
+Expired sessions are renewed automatically using your saved credentials. If no
+password is saved or Jira rejects it, the sign-in form opens again. You can also
+say **“Sign in to Jira”** to reopen it using the `jira_login` tool.
 
 ## Tools
 
@@ -87,19 +88,46 @@ The sign-in form opens again when your session expires. You can also say
 
 ## Authentication
 
-Version 0.2.3 fixes `Forbidden` after submitting the local sign-in form in a
-browser. Update the plugin and reopen the sign-in window if using an older version.
+Version 0.3.3 saves credentials in the system credential storage and automatically
+renews expired sessions. After upgrading from a session-only version, sign in
+once through the local form to save your password; the existing session remains usable.
 
 The form listens only on `127.0.0.1` on a random port. It closes after 10 minutes
 without a successful sign-in, or 30 seconds after success. Its URL contains a
 random token; requests with other Origin or Host values are rejected. The password
-is sent to Jira over HTTPS. The plugin does not save it or include it in process
-arguments, logs, MCP responses or the distribution archive.
+is sent to Jira over HTTPS. It is saved only after Jira confirms the account and
+is never included in process arguments, logs, MCP responses or the distribution archive.
 
-Only the Jira session (`JSESSIONID`) and username are saved: in Keychain on macOS
-and Credential Manager on Windows. Storage is associated with the operating
+The username, password and Jira session (`JSESSIONID`) are saved in Keychain on
+macOS and Credential Manager on Windows. Storage is associated with the operating
 system user and Jira URL. The plugin does not create a password or cookie file
 if system credential storage is unavailable. Each user signs in independently.
+The username is still returned by `jira_whoami`; passwords and cookies are not.
+
+When a Jira tool encounters an expired session, it signs in once with the saved
+credentials, saves the new cookie and retries the tool once. Concurrent calls
+within one server process share the same renewal. Permission errors and network
+failures do not trigger a password login. If renewal fails because the credentials
+are rejected or CAPTCHA is required, the saved password is removed to avoid
+repeated failed logins. CAPTCHA must be cleared on the Jira website. Temporary
+network failures retain the saved credentials for the next request.
+
+Each HTTP request has a 30-second timeout. The whole tool call allows up to
+10 minutes to cover session renewal and a complete retry, including attachment
+redirects. The longest attachment path uses at most 18 HTTP requests (9 minutes),
+leaving time for local processing.
+
+Manual sign-in takes precedence over an older automatic login, including when
+both account checks finish together or a saved-cookie read is still pending.
+Failed credential writes do not replace
+the active session or suppress rejection of previously saved credentials. After
+a successful manual sign-in, even a late network error or timeout from an older
+automatic login allows the tool to retry with the new session.
+If a rejected password cannot be removed
+because the credential store is not writable, automatic sign-in stays disabled
+in that server process until a manual sign-in successfully saves credentials.
+Fix the store permissions or remove the rejected entry before restarting the
+server, since the in-memory block does not survive a restart.
 
 The package includes native components for macOS Apple Silicon / Intel,
 Windows x64 / ARM64, and Linux x64 / ARM64 with glibc and a working Secret Service.

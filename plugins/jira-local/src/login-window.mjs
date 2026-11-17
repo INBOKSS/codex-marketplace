@@ -23,7 +23,7 @@ function messageFor(error) {
     ACCESS_DENIED: 'Jira denied access for this account.',
     CONNECTION_ERROR: 'Could not connect to Jira. Check your network or VPN.',
     JIRA_TIMEOUT: 'Jira did not respond in time. Try again.',
-    CREDENTIAL_STORE_ERROR: 'Could not save the session. Allow access to the system credential storage.',
+    CREDENTIAL_STORE_ERROR: 'Could not save your credentials and session. Allow access to the system credential storage.',
     INVALID_ARGUMENT: 'Enter your username and password.' })[error?.code] || 'Could not complete sign-in. Try again.';
 }
 
@@ -32,7 +32,8 @@ export class LoginWindow {
     this.client = client; this.opener = opener; this.lifetimeMs = lifetimeMs;
   }
 
-  async open({ reopen = false } = {}) {
+  async open({ reopen = false, reset = false } = {}) {
+    if (reset && this.user) await this.close();
     if (!this.server) {
       this.token = randomBytes(24).toString('hex'); this.nonce = randomBytes(24).toString('base64');
       this.user = null; this.busy = false;
@@ -74,7 +75,7 @@ export class LoginWindow {
         ${error ? `<div class="error">${escapeHtml(error)}</div>` : ''}
         <form method="post" action="/${this.token}/login"><label for="username">Jira username</label><input id="username" name="username" autocomplete="username" maxlength="250" required autofocus>
         <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" maxlength="2000" required><button type="submit">Sign in</button></form>
-        <p class="note">The plugin does not save your password. Your session is stored in the system credential storage.</p>
+        <p class="note">Your username, password and session are saved in the system credential storage so the plugin can sign in again when your session expires. Your password is never sent to Codex chat.</p>
         ${error ? `<p class="note"><a href="${escapeHtml(this.client.baseUrl)}/login.jsp" target="_blank" rel="noopener noreferrer">Open the Jira website</a></p>` : ''}`}
       </main></body></html>`;
   }

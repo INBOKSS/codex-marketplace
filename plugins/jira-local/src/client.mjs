@@ -57,7 +57,7 @@ function normalizedIssue(item, root) {
 
 export class JiraClient {
   constructor({ url = process.env.JIRA_BASE_URL || DEFAULT_BASE_URL, store, fetchImpl = fetch } = {}) {
-    this.baseUrl = baseUrl(url); this.store = store; this.fetch = fetchImpl; this.cookie = null;
+    this.baseUrl = baseUrl(url); this.store = store; this.fetch = fetchImpl; this.cookie = null; this.sessionVersion = 0;
   }
 
   setCookie(cookie) {
@@ -70,7 +70,49 @@ export class JiraClient {
   async loadSession() {
     if (this.cookie) return;
     const cookie = process.env.JIRA_JSESSIONID || (await this.store.load())?.cookie;
-    if (cookie) this.setCookie(cookie);
+    if (!this.cookie && cookie) this.setCookie(cookie);
+  }
+
+  async withSession(operation) {
+    const version = this.sessionVersion;
+    try { return await operation(); }
+    catch (error) {
+      if (!(error instanceof JiraError) || error.code !== 'AUTH_REQUIRED') throw error;
+      await this.refreshSession(version);
+      return operation();
+    }
+  }
+
+  async refreshSession(version) {
+    // A late response from the expired session must not replace a newly authenticated session.
+    if (version !== this.sessionVersion) return;
+    if (this.refreshError) throw this.refreshError;
+    if (!this.refreshing) {
+      this.refreshing = (async () => {
+        const saved = await this.store.load();
+        if (version !== this.sessionVersion) return;
+        if (!saved?.password) throw new JiraError('AUTH_REQUIRED', 'Sign in to Jira in the local login window.');
+        try { await this.login(saved.username, saved.password, version); }
+        catch (error) {
+          if (version !== this.sessionVersion) return;
+          if (['AUTH_REQUIRED', 'ACCESS_DENIED', 'CAPTCHA_REQUIRED'].includes(error.code)) {
+            this.refreshError = error.code === 'ACCESS_DENIED'
+              ? new JiraError('AUTH_REQUIRED', 'Sign in to Jira in the local login window.') : error;
+            try { this.store.save(saved.cookie, saved.username); }
+            catch {
+              this.refreshError = new JiraError(this.refreshError.code,
+                'Cannot remove rejected credentials from system credential storage. Automatic sign-in is disabled. '
+                + (error.code === 'CAPTCHA_REQUIRED' ? 'Clear CAPTCHA on the Jira website, then sign in locally.' : 'Sign in locally.'));
+            }
+            throw this.refreshError;
+          }
+          throw error;
+        }
+      })();
+    }
+    const refreshing = this.refreshing;
+    try { await refreshing; }
+    finally { if (this.refreshing === refreshing) this.refreshing = null; }
   }
 
   async response(url, { method = 'GET', json, cookie = this.cookie, accept = 'application/json' } = {}) {
@@ -112,7 +154,7 @@ export class JiraClient {
     return data;
   }
 
-  async login(username, password) {
+  async login(username, password, refreshVersion) {
     if (typeof username !== 'string' || !username.trim() || typeof password !== 'string' || !password) {
       throw new JiraError('INVALID_ARGUMENT', 'Enter your Jira username and password.');
     }
@@ -124,18 +166,20 @@ export class JiraClient {
     }
     const user = await this.request('/rest/api/2/myself', { cookie });
     if (!user.name) throw new JiraError('AUTH_REQUIRED', 'Jira did not confirm the account.');
-    await this.store.save(cookie, user.name);
+    if (refreshVersion !== undefined && refreshVersion !== this.sessionVersion) return;
+    // The OS vault writes synchronously; commit credentials, cookie and version without yielding.
+    this.store.save(cookie, username.trim(), password);
     this.setCookie(cookie);
+    this.sessionVersion++;
+    this.refreshError = null;
     return { name: user.name, display_name: user.displayName ?? null, base_url: this.baseUrl };
   }
 
   async whoami() {
     await this.loadSession();
     if (!this.cookie) throw new JiraError('AUTH_REQUIRED', 'Sign in to Jira in the local login window.');
-    let user;
-    try { user = await this.request('/rest/api/2/myself'); }
-    catch (error) { if (error.code === 'AUTH_REQUIRED') this.cookie = null; throw error; }
-    if (!user.name) { this.cookie = null; throw new JiraError('AUTH_REQUIRED', 'Jira did not confirm the account.'); }
+    const user = await this.request('/rest/api/2/myself');
+    if (!user.name) throw new JiraError('AUTH_REQUIRED', 'Jira did not confirm the account.');
     return { name: user.name, display_name: user.displayName ?? null, base_url: this.baseUrl };
   }
 

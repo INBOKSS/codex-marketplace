@@ -12,7 +12,7 @@ export const issue = { key: 'IMA-598', id: '10000', properties: { example: null 
 export class MemoryStore {
   constructor(value = { cookie: 'saved-session', username: 'alice' }) { this.value = value; }
   async load() { return this.value; }
-  async save(cookie, username) { this.value = { cookie, username }; }
+  save(cookie, username, password) { this.value = { cookie, username, ...(password === undefined ? {} : { password }) }; }
 }
 
 export function fixtureClient({ store = new MemoryStore(), handler } = {}) {

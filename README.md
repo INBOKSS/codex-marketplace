@@ -8,7 +8,7 @@ root.
 
 | Plugin | Version | Purpose |
 | --- | --- | --- |
-| `jira-local` | `0.2.3` | Read Jira tickets, download attachments, and sign in through a local browser window. |
+| `jira-local` | `0.3.3` | Read Jira tickets, download attachments, and sign in through a local browser window. |
 
 The Jira plugin includes its compiled MCP server and native credential-storage
 libraries for Windows x64 / ARM64, macOS Intel / Apple Silicon, and Linux
@@ -44,8 +44,9 @@ app and run these commands. The local MCP process must resolve Node.js 22 or
 newer. Use the desktop runtime when available.
 
 Restart Codex or open a new chat, then ask **“Show my Jira tickets”**. Enter your
-own Jira credentials only in the browser sign-in window. Each employee's session
-is stored in their operating system credential store.
+own Jira credentials only in the browser sign-in window. Each employee's login,
+password and session are stored in their operating system credential store.
+Expired sessions are renewed automatically; passwords are never sent through chat.
 
 You need access to `https://jira.co.inbox.lv`, including VPN access when required.
 See [the Jira plugin README](plugins/jira-local/README.md) for tool details and

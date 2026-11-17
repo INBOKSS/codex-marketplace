@@ -6,7 +6,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { fixtureClient, MemoryStore } from './fixture.mjs';
 
-test('browser form logs in locally, stores only a session and immediately authorizes MCP calls', async t => {
+test('browser form stores credentials locally and immediately authorizes MCP calls', async t => {
   const { client, store } = fixtureClient({ store: new MemoryStore(null) });
   const opened = [], login = new LoginWindow(client, { opener: async url => { opened.push(url); return true; } });
   t.after(() => login.close());
@@ -20,7 +20,7 @@ test('browser form logs in locally, stores only a session and immediately author
   const result = await fetch(`${info.login_url}/login`, { method: 'POST', headers: { Origin: login.origin },
     body: new URLSearchParams({ username: 'alice', password: 'private-password' }) });
   assert.equal(result.status, 200); assert.match(await result.text(), /Jira connected/);
-  assert.deepEqual(store.value, { cookie: 'new-session', username: 'alice' });
+  assert.deepEqual(store.value, { cookie: 'new-session', username: 'alice', password: 'private-password' });
   assert.equal((await client.whoami()).name, 'alice');
   await login.open(); assert.equal(opened.length, 1);
 });
@@ -60,5 +60,32 @@ test('unauthenticated MCP call opens one login page; reading succeeds after logi
     body: new URLSearchParams({ username: 'alice', password: 'private-password' }) });
   const result = await mcp.callTool({ name: 'jira_get_issue', arguments: { key: 'IMA-598' } });
   assert.ok(!result.isError); assert.equal(result.structuredContent.fields.description, 'Details');
+  assert.doesNotMatch(JSON.stringify(result), /private-password|new-session/);
   assert.equal(opened, 1);
+});
+
+test('rejected automatic login replaces a recent success page with a usable sign-in form', async t => {
+  let denied = false;
+  const { client: jira } = fixtureClient({ store: new MemoryStore(null), handler: () =>
+    denied ? new Response('private-error-body', { status: 401 }) : null });
+  const opened = [], loginWindow = new LoginWindow(jira, { opener: async url => { opened.push(url); return true; } });
+  const { server } = createJiraServer({ client: jira, loginWindow });
+  const mcp = new Client({ name: 'reauth-test', version: '1.0.0' });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  t.after(async () => { await mcp.close(); await server.close(); await loginWindow.close(); });
+  await server.connect(serverTransport); await mcp.connect(clientTransport);
+  const info = await loginWindow.open();
+  await fetch(`${info.login_url}/login`, { method: 'POST', headers: { Origin: loginWindow.origin },
+    body: new URLSearchParams({ username: 'alice', password: 'private-password' }) });
+  denied = true;
+  const failed = await mcp.callTool({ name: 'jira_whoami', arguments: {} });
+  assert.equal(failed.isError, true); assert.equal(opened.length, 2);
+  assert.notEqual(loginWindow.url, info.login_url);
+  const page = await (await fetch(loginWindow.url)).text();
+  assert.match(page, /type="password"/); assert.doesNotMatch(page, /private-password|new-session/);
+  denied = false;
+  const signedIn = await fetch(`${loginWindow.url}/login`, { method: 'POST', headers: { Origin: loginWindow.origin },
+    body: new URLSearchParams({ username: 'alice', password: 'replacement-password' }) });
+  assert.equal(signedIn.status, 200);
+  assert.ok(!(await mcp.callTool({ name: 'jira_whoami', arguments: {} })).isError);
 });

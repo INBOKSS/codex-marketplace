@@ -1,13 +1,13 @@
 {
   "name": "jira-local",
-  "version": "0.2.3",
+  "version": "0.3.3",
   "description": "Local Jira Server integration: tickets, attachments and simple browser sign-in.",
   "author": { "name": "Inbox" },
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Jira — Local Integration",
     "shortDescription": "Jira tickets and attachments with simple sign-in",
-    "longDescription": "Codex starts the integration automatically. The first request opens a Jira sign-in window in your browser. Your password is not saved; your session is stored in the system credential storage.",
+    "longDescription": "Codex starts the integration automatically. The first request opens a Jira sign-in window in your browser. Your credentials and session are stored in the system credential storage, and expired sessions are renewed automatically. Your password is never sent to Codex chat.",
     "developerName": "Inbox",
     "category": "Productivity",
     "capabilities": ["Read"],

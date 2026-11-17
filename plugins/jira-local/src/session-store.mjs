@@ -26,12 +26,13 @@ export class SessionStore {
       if (raw === null || raw === undefined) return null;
       const data = JSON.parse(raw);
       if (typeof data?.cookie !== 'string' || typeof data?.username !== 'string') throw new Error();
+      if (data.password !== undefined && (typeof data.password !== 'string' || !data.password)) throw new Error();
       return data;
     } catch { throw new JiraError('CREDENTIAL_STORE_ERROR', 'Cannot read the system credential storage. Check its permissions.'); }
   }
 
-  async save(cookie, username) {
-    try { this.entry().setPassword(JSON.stringify({ cookie, username })); }
-    catch { throw new JiraError('CREDENTIAL_STORE_ERROR', 'Cannot save the Jira session in system credential storage.'); }
+  save(cookie, username, password) {
+    try { this.entry().setPassword(JSON.stringify({ cookie, username, password })); }
+    catch { throw new JiraError('CREDENTIAL_STORE_ERROR', 'Cannot save Jira credentials and session in system credential storage.'); }
   }
 }

@@ -22,10 +22,10 @@ test('list filters priority safely, groups tickets and exposes next page', async
   assert.equal(requests.at(-1).url.searchParams.get('fields'), 'summary,status,created,updated,priority');
 });
 
-test('login stores only session and username after verifying the account', async () => {
+test('login saves credentials after verifying the account without returning secrets', async () => {
   const { client, store, requests } = fixtureClient({ store: new MemoryStore(null) });
-  const result = await client.login('alice', 'private-password');
-  assert.deepEqual(store.value, { cookie: 'new-session', username: 'alice' });
+  const result = await client.login(' alice@example.test ', 'private-password');
+  assert.deepEqual(store.value, { cookie: 'new-session', username: 'alice@example.test', password: 'private-password' });
   assert.equal(requests[0].options.headers.Cookie, undefined);
   assert.equal(requests[1].options.headers.Cookie, 'JSESSIONID=new-session');
   assert.doesNotMatch(JSON.stringify(result), /private-password|new-session/);
@@ -39,6 +39,14 @@ test('missing auth, invalid keys and limits never query Jira anonymously', async
   await assert.rejects(client.getAttachment({ attachment_id: '../123' }), { code: 'INVALID_ARGUMENT' });
   await assert.rejects(client.listMyTickets({ max_results: 101 }), { code: 'INVALID_ARGUMENT' });
   assert.equal(requests.length, 0);
+});
+
+test('failed account verification does not overwrite stored credentials', async () => {
+  const store = new MemoryStore({ cookie: 'saved-session', username: 'alice', password: 'saved-password' });
+  const { client } = fixtureClient({ store, handler: url => url.pathname.endsWith('/myself')
+    ? new Response('private-error-body', { status: 401 }) : null });
+  await assert.rejects(client.login('other-user', 'unverified-password'), { code: 'AUTH_REQUIRED' });
+  assert.deepEqual(store.value, { cookie: 'saved-session', username: 'alice', password: 'saved-password' });
 });
 
 test('HTTP errors, CAPTCHA and network failures do not expose response bodies or retry login', async () => {
@@ -92,11 +100,15 @@ test('download filenames stay local and work with Windows reserved names', () =>
   assert.throws(() => baseUrl('https://user:password@jira.example'), { code: 'CONFIG_ERROR' });
 });
 
-test('credential vault receives only session JSON and never falls back to a file', async () => {
+test('credential vault saves passwords, reads legacy sessions and never falls back to a file', async () => {
   let value = null;
   const store = new SessionStore(rootUrl, { entryFactory: () => ({ getPassword: () => value, setPassword: data => { value = data; } }) });
   assert.equal(await store.load(), null); await store.save('session-cookie', 'alice');
   assert.deepEqual(await store.load(), { cookie: 'session-cookie', username: 'alice' });
+  await store.save('new-session', 'alice@example.test', 'private-password');
+  assert.deepEqual(await store.load(), { cookie: 'new-session', username: 'alice@example.test', password: 'private-password' });
+  value = JSON.stringify({ cookie: 'new-session', username: 'alice', password: 123 });
+  await assert.rejects(store.load(), { code: 'CREDENTIAL_STORE_ERROR' });
   const broken = new SessionStore(rootUrl, { entryFactory: () => { throw new Error('private-store-error'); } });
   await assert.rejects(broken.load(), error => error.code === 'CREDENTIAL_STORE_ERROR' && !error.message.includes('private-store-error'));
 });
